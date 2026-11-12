@@ -1,0 +1,21 @@
+{
+  "name": "ExpenseFlow - Personal Expense Tracker",
+  "short_name": "ExpenseFlow",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "description": "Fast, private personal finance and expense tracking web application.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

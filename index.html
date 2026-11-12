@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>ExpenseFlow - Personal Expense Tracker</title>
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col pb-20 md:pb-6 select-none sm:select-auto">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="h-16 flex items-center justify-between gap-2">
+                <!-- Brand / Logo -->
+                <div class="flex items-center space-x-2.5 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex-shrink-0 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                        <i data-lucide="wallet" class="w-5 h-5"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center space-x-1.5">
+                            <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">ExpenseFlow</h1>
+                            <span id="storageBadge" class="hidden sm:inline-block"></span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium hidden sm:block truncate">Personal Finance & Budget Tracker</p>
+                    </div>
+                </div>
+
+                <!-- Controls & Actions -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <!-- Currency Selector (Desktop Pills) -->
+                    <div class="hidden lg:flex items-center space-x-1 bg-slate-100 rounded-lg p-1 text-xs font-semibold">
+                        <button type="button" class="currency-btn px-2.5 py-1 rounded-md transition-all text-slate-600 hover:text-slate-900" data-currency="$">$ USD</button>
+                        <button type="button" class="currency-btn px-2.5 py-1 rounded-md transition-all text-slate-600 hover:text-slate-900" data-currency="₹">₹ INR</button>
+                        <button type="button" class="currency-btn px-2.5 py-1 rounded-md transition-all text-slate-600 hover:text-slate-900" data-currency="€">€ EUR</button>
+                        <button type="button" class="currency-btn px-2.5 py-1 rounded-md transition-all text-slate-600 hover:text-slate-900" data-currency="£">£ GBP</button>
+                    </div>
+
+                    <!-- Compact Currency Selector (Mobile / Tablet) -->
+                    <div class="lg:hidden">
+                        <select id="mobileCurrencySelect" class="bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 rounded-lg px-2 py-1.5 outline-none cursor-pointer">
+                            <option value="₹">₹ INR</option>
+                            <option value="$">$ USD</option>
+                            <option value="€">€ EUR</option>
+                            <option value="£">£ GBP</option>
+                        </select>
+                    </div>
+
+                    <!-- Month Picker -->
+                    <div class="flex items-center bg-slate-100 rounded-lg px-2.5 py-1.5 border border-slate-200">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-500 mr-1.5 flex-shrink-0"></i>
+                        <input type="month" id="monthPicker" class="bg-transparent text-xs sm:text-sm font-semibold text-slate-700 outline-none cursor-pointer">
+                    </div>
+
+                    <!-- Add Record Button (Desktop) -->
+                    <button id="openAddTxModal" class="hidden sm:inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold shadow-xs transition-colors">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Add Record</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 flex-1 w-full space-y-6 sm:space-y-8">
+        
+        <!-- Summary Cards Grid (2x2 on mobile, 4 in row on desktop) -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5" id="section-summary">
+            <!-- Net Balance -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">Net Balance</span>
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="piggy-bank" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <h3 id="statNetSavings" class="text-xl sm:text-2xl font-extrabold text-slate-900 truncate">₹0.00</h3>
+                    <p id="statSavingsRate" class="text-[11px] text-indigo-600 font-medium mt-0.5 truncate">Savings: 0%</p>
+                </div>
+            </div>
+
+            <!-- Total Income -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">Monthly Income</span>
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="arrow-down-left" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <h3 id="statIncome" class="text-xl sm:text-2xl font-extrabold text-emerald-600 truncate">₹0.00</h3>
+                    <p class="text-[11px] text-slate-400 font-medium mt-0.5 truncate">Earned this month</p>
+                </div>
+            </div>
+
+            <!-- Total Expenses -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">Monthly Expenses</span>
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="arrow-up-right" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <h3 id="statExpenses" class="text-xl sm:text-2xl font-extrabold text-rose-600 truncate">₹0.00</h3>
+                    <p class="text-[11px] text-slate-400 font-medium mt-0.5 truncate">Spent this month</p>
+                </div>
+            </div>
+
+            <!-- Transaction Count -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">Transactions</span>
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="receipt" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <h3 id="statTxCount" class="text-xl sm:text-2xl font-extrabold text-slate-900 truncate">0</h3>
+                    <p class="text-[11px] text-slate-400 font-medium mt-0.5 truncate">Recorded entries</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts & Budget Row -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6" id="section-analytics">
+            <!-- Spending by Category Chart -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-slate-900 text-sm sm:text-base">Expense Breakdown</h3>
+                    <span class="text-xs text-slate-400">By Category</span>
+                </div>
+                <div class="relative flex-1 min-h-[220px] max-h-[260px] flex items-center justify-center">
+                    <canvas id="categoryChart"></canvas>
+                    <div id="noChartData" class="hidden absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs sm:text-sm">
+                        <i data-lucide="pie-chart" class="w-8 h-8 mb-2 stroke-1 text-slate-300"></i>
+                        No expense records this month
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6-Month Income vs Expense Trend -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-slate-900 text-sm sm:text-base">Cash Flow Trend</h3>
+                    <span class="text-xs text-slate-400">Past 6 Months</span>
+                </div>
+                <div class="relative flex-1 min-h-[220px] max-h-[260px]">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Budget Health Progress Bars -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col" id="section-budgets">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-slate-900 text-sm sm:text-base">Monthly Budgets</h3>
+                    <button id="openCategoriesBtn" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors p-1">
+                        Manage &plus;
+                    </button>
+                </div>
+                <div id="budgetProgressList" class="flex-1 space-y-3.5 overflow-y-auto max-h-[250px] pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Transactions Section -->
+        <section class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden" id="section-history">
+            <!-- Filter & Action Header -->
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <h3 class="font-bold text-slate-900 text-base sm:text-lg">Transaction History</h3>
+                        <span id="filteredBadge" class="hidden text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">Filtered</span>
+                    </div>
+
+                    <!-- Export CSV Button -->
+                    <button id="exportCsvBtn" title="Export transactions to CSV" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Filter Controls Bar -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <!-- Search Input -->
+                    <div class="relative">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="searchInput" placeholder="Search notes or methods..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                    </div>
+
+                    <!-- Type Filter Tabs / Select -->
+                    <select id="filterType" class="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-700 outline-none cursor-pointer focus:border-indigo-500">
+                        <option value="">All Types (Income & Expenses)</option>
+                        <option value="expense">Expenses Only</option>
+                        <option value="income">Income Only</option>
+                    </select>
+
+                    <!-- Category Filter -->
+                    <select id="filterCategory" class="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-700 outline-none cursor-pointer focus:border-indigo-500">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Desktop View: Table -->
+            <div class="hidden sm:block overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-400 tracking-wider border-b border-slate-100">
+                        <tr>
+                            <th class="py-3 px-6">Date</th>
+                            <th class="py-3 px-6">Category</th>
+                            <th class="py-3 px-6">Description / Note</th>
+                            <th class="py-3 px-6">Method</th>
+                            <th class="py-3 px-6 text-right">Amount</th>
+                            <th class="py-3 px-6 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody" class="divide-y divide-slate-100">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile View: Modern Touch Card List -->
+            <div id="transactionsMobileList" class="sm:hidden divide-y divide-slate-100 p-2 space-y-1">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="noTransactionsState" class="hidden p-8 sm:p-12 text-center text-slate-400">
+                <i data-lucide="inbox" class="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 stroke-1 text-slate-300"></i>
+                <p class="font-medium text-sm">No transactions found for the selected criteria.</p>
+                <p class="text-xs text-slate-400 mt-1">Tap "+" to record a new expense or income.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar (Visible only on mobile screens) -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2 flex items-center justify-around shadow-lg">
+        <a href="#section-summary" class="flex flex-col items-center text-indigo-600 p-1">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Overview</span>
+        </a>
+        <a href="#section-budgets" class="flex flex-col items-center text-slate-500 hover:text-indigo-600 p-1">
+            <i data-lucide="pie-chart" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Budgets</span>
+        </a>
+        
+        <!-- Quick Add FAB (Center highlighted button) -->
+        <button id="mobileAddFab" class="flex items-center justify-center w-12 h-12 -mt-5 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-300 active:scale-95 transition-transform" aria-label="Add Transaction">
+            <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
+        </button>
+
+        <a href="#section-history" class="flex flex-col items-center text-slate-500 hover:text-indigo-600 p-1">
+            <i data-lucide="history" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold mt-0.5">History</span>
+        </a>
+        <button type="button" id="mobileManageCatNavBtn" class="flex flex-col items-center text-slate-500 hover:text-indigo-600 p-1">
+            <i data-lucide="tag" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Categories</span>
+        </button>
+    </nav>
+
+    <!-- Footer (Desktop) -->
+    <footer class="hidden md:block bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+        ExpenseFlow &bull; Local & Private &bull; 100% Offline Capable
+    </footer>
+
+    <!-- ADD/EDIT TRANSACTION MODAL (Mobile Bottom Sheet & Desktop Centered Dialog) -->
+    <div id="txModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-scaleIn max-h-[92vh] flex flex-col">
+            <!-- Modal Header with mobile drag indicator -->
+            <div class="pt-3 px-6 pb-4 border-b border-slate-100 flex items-center justify-between relative">
+                <div class="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-300 rounded-full"></div>
+                <h3 id="txModalTitle" class="text-base sm:text-lg font-bold text-slate-900 mt-2 sm:mt-0">Add Transaction</h3>
+                <button type="button" class="close-modal text-slate-400 hover:text-slate-600 p-2 -mr-2">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <form id="txForm" class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                <input type="hidden" id="txId">
+
+                <!-- Type Selector (Tabs) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Type</label>
+                    <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                        <button type="button" id="typeExpenseBtn" class="py-2.5 text-sm font-semibold rounded-lg transition-all bg-white text-rose-600 shadow-xs">Expense</button>
+                        <button type="button" id="typeIncomeBtn" class="py-2.5 text-sm font-semibold rounded-lg transition-all text-slate-600 hover:text-slate-900">Income</button>
+                    </div>
+                    <input type="hidden" id="txType" value="expense">
+                </div>
+
+                <!-- Amount & Date -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Amount *</label>
+                        <div class="relative">
+                            <span id="formCurrencyPrefix" class="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-base">₹</span>
+                            <input type="number" step="0.01" min="0.01" id="txAmount" required placeholder="0.00" class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-base font-semibold outline-none focus:border-indigo-500 focus:bg-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Date *</label>
+                        <input type="date" id="txDate" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium outline-none focus:border-indigo-500 focus:bg-white">
+                    </div>
+                </div>
+
+                <!-- Category -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Category *</label>
+                    <select id="txCategory" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium outline-none focus:border-indigo-500 focus:bg-white cursor-pointer">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Payment Method</label>
+                    <select id="txMethod" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium outline-none focus:border-indigo-500 focus:bg-white cursor-pointer">
+                        <option value="UPI">UPI / Mobile Pay</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Debit Card">Debit Card</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Note / Description -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Note / Description</label>
+                    <input type="text" id="txNote" placeholder="e.g. Grocery, Ticket booking, Coffee" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm outline-none focus:border-indigo-500 focus:bg-white">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-3 flex justify-end space-x-3">
+                    <button type="button" class="close-modal px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-800 active:bg-slate-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="flex-1 sm:flex-none px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-xs transition-colors">Save Transaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CATEGORIES & BUDGETS MODAL -->
+    <div id="catModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
+            <div class="pt-3 px-6 pb-4 border-b border-slate-100 flex items-center justify-between relative">
+                <div class="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-300 rounded-full"></div>
+                <div>
+                    <h3 class="text-base sm:text-lg font-bold text-slate-900 mt-2 sm:mt-0">Categories & Budgets</h3>
+                    <p class="text-xs text-slate-400">Set monthly spending limits for each category</p>
+                </div>
+                <button type="button" class="close-cat-modal text-slate-400 hover:text-slate-600 p-2 -mr-2">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto flex-1">
+                <!-- Add new category form -->
+                <form id="newCatForm" class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Create New Category</h4>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <input type="text" id="newCatName" required placeholder="Category Name" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-indigo-500">
+                        <select id="newCatType" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-indigo-500">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div class="relative">
+                            <span id="catModalCurrency" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₹</span>
+                            <input type="number" step="50" min="0" id="newCatBudget" placeholder="Monthly Budget" class="w-full pl-7 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="color" id="newCatColor" value="#3B82F6" class="w-9 h-9 rounded-xl border border-slate-200 cursor-pointer p-0.5 bg-white flex-shrink-0">
+                            <button type="submit" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold rounded-xl transition-colors truncate">Add Category</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Existing categories list -->
+                <div class="p-4 sm:p-6 space-y-2.5" id="categoriesManageList">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button type="button" class="close-cat-modal w-full sm:w-auto px-5 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-xl">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-20 md:bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none px-4 py-3 rounded-xl shadow-lg font-medium text-sm text-white flex items-center space-x-2">
+        <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+        <span id="toastMsg">Success</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

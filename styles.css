@@ -1,0 +1,76 @@
+/* Custom Utilities, Mobile Animations & Touch Interactions */
+
+@keyframes scaleIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes slideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-scaleIn {
+    animation: scaleIn 0.15s ease-out forwards;
+}
+
+@media (max-width: 639px) {
+    .animate-scaleIn {
+        animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Category Color Dot */
+.color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Tap Highlight and Safe Area padding for iOS/Android */
+html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+}
+
+body {
+    padding-bottom: max(5rem, env(safe-area-inset-bottom));
+}
+
+/* Smooth active states for touch buttons */
+button:active, a:active {
+    transform: scale(0.98);
+}
